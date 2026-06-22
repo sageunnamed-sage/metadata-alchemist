@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from lxml import etree
 
-from app.parsers.tei_parser import TEIParser
+from app.parsers.tei_parser import TEIParser, TEIParserError
 from app.domain.models.metadata_record import MetadataRecord
 
 def test_parse_valid_tei_file(tmp_path: Path) -> None:
@@ -148,7 +148,7 @@ def test_invalid_xml_raises_exception(tmp_path: Path) -> None:
 
     parser = TEIParser()
 
-    with pytest.raises(etree.XMLSyntaxError):
+    with pytest.raises(TEIParserError):
         parser.parse(xml_file)
 
 
