@@ -42,3 +42,4 @@ python-dotenv==1.1.1
 
 # PDF reporting (optional)
 reportlab==4.4.3
+defusedxml

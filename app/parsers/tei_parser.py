@@ -8,13 +8,23 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from datetime import date as Date
 from lxml import etree
+from typing import ClassVar, TypedDict
+
 
 from app.domain.models.metadata_record import MetadataRecord
 from app.parsers.base import BaseParser
 
 logger = logging.getLogger(__name__)
+
+parser = etree.XMLParser(resolve_entities=False,
+                         no_network=True,)
+
+class TEIMetadata(TypedDict):
+    title: str | None
+    creator: str | None
+    publication_date: str | None
+    place: str | None
 
 class TEIParserError(Exception):
     """Raised when a TEI document cannot be parsed."""
@@ -25,16 +35,16 @@ class TEIParser(BaseParser):
     Parser for TEI XML documents.
     """
 
-    TEI_NS = "http://www.tei-c.org/ns/1.0"
+    TEI_NS: ClassVar[str] = "http://www.tei-c.org/ns/1.0"
 
-    NAMESPACES = {
+    NAMESPACES: ClassVar[dict[str, str]] = {
         "tei": TEI_NS,
     }
 
     TITLE_XPATH = "//tei:titleStmt/tei:title"
     AUTHOR_XPATH = "//tei:titleStmt/tei:author"
     DATE_XPATH = "//tei:publicationStmt/tei:date"
-    PLACE_XPATH = "//tei:placeName"
+    PLACE_XPATH = "//tei:placeName" # first name encountered in document
 
     def parse(self, file_path: str | Path) -> MetadataRecord:
         """
@@ -42,17 +52,17 @@ class TEIParser(BaseParser):
         Args:
             file_path: Path to the TEI XML document.
         Returns:
-            MetadataRecord..
+            MetadataRecord containing extracted TEI metadata.
         """
         path = Path(file_path)
         logger.info("Parsing TEI XML file %s", path)
 
         root = self._load_xml(path)
 
-        metadata = self.extract_metadata(root)
+        metadata = self._extract_metadata(root)
 
         record = MetadataRecord(
-            id=file_path.stem,
+            id=path.stem,
             title=metadata["title"] or "Untitled",
             creator=metadata["creator"],
             publication_date=metadata["publication_date"],
@@ -60,9 +70,7 @@ class TEIParser(BaseParser):
             subjects=[],
         )
 
-        logger.info("Successfully parsed TEI document", extra={"record_id": record.id,
-                                                               },
-                    )
+        logger.info("Successfully parsed TEI XML document", extra={"file_path": str(path)} )
         return record
 
     def _load_xml(self, file_path: Path) -> etree._Element:
@@ -73,11 +81,9 @@ class TEIParser(BaseParser):
             tree = etree.parse(str(file_path))
             return tree.getroot()
         except (OSError, etree.XMLSyntaxError) as exc:
-            logger.exception("Failed to parse TEI XML", extra={"file_path": str(file_path),
-                                                               },
-                             )
-            raise TEIParserError(f"Unable to parse TEI file: {file_path}")
-    def extract_metadata(self, root: etree._Element) -> dict[str, str| None]:
+            raise TEIParserError(f"Unable to parse TEI file: {file_path}") from exc
+
+    def _extract_metadata(self, root: etree._Element) -> TEIMetadata:
         return {
             "title" : self._extract_text(root, self.TITLE_XPATH),
             "creator" : self._extract_text(root, self.AUTHOR_XPATH),
