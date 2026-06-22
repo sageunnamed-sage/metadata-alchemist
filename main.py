@@ -14,7 +14,7 @@ def main():
         id="rec-001",
         title="Medieval Manuscript",
         creator="Unknown Scribe",
-        date="1450",
+        publication_date="1450",
         place="Cantebury",
         subjects=["Manuscripts", "Middle Ages"]
     )

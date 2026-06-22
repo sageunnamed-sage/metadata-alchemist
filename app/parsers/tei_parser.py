@@ -5,21 +5,25 @@ Extracts core metadata fields from TEI documents and converts them into
 MetadataRecord domain objects.
 """
 from __future__ import annotations
-from app.domain.models.metadata_record import MetadataRecord
 
 import logging
 from pathlib import Path
+from datetime import date
 from lxml import etree
+
+from app.domain.models.metadata_record import MetadataRecord
+
 logger = logging.getLogger(__name__)
+
 
 class TEIParser:
     """
     Parser for TEI XML documents.
 
-    Extracts"
+    Extracts:
     - title
     - author
-    - date
+    - publication_date
     - placeName
     """
 
@@ -30,74 +34,72 @@ class TEIParser:
     }
 
     def parse(self, file_path: str | Path) -> MetadataRecord:
-        """
-        Parse a TEI XML file into a MetadataRecord.
-        Args:
-            file_path (str | Path): Path to a TEI XML file.
-        Returns:
-            MetadataRecord containing extracted metadata.
-        Raises:
-            OSError: If file cannot be read.
-            etree.XMLSyntaxError: If XML is malformed.
-            ValueError: If a required field is cannot be extracted.
-        """
         file_path = Path(file_path)
-        logger.info(f"Parsing TEI XML file {file_path}")
+        logger.info("Parsing TEI XML file %s", file_path)
 
         tree = etree.parse(str(file_path))
         root = tree.getroot()
 
         title = self._extract_text(
             root,
-            "//tei:titleStmt/tei:title",
+            "//tei:teiHeader/tei:fileDesc/tei:titleStmt/tei:title",
         )
         author = self._extract_text(
             root,
-            "//tei:titleStmt/tei:author",
+            "//tei:teiHeader/tei:fileDesc/tei:titleStmt/tei:author",
         )
-        date = self._extract_text(
+        date_text = self._extract_text(
             root,
-            "//tei:publicationStmt/tei:date",
+            "//tei:teiHeader/tei:fileDesc/tei:publicationStmt/tei:date",
         )
         place = self._extract_text(
             root,
-            "//tei:placeName",
+            "//tei:text//tei:placeName",
         )
-        record_id = file_path.stem
 
-        logger.debug("Extract metadata",
-                     extra={"record_id": record_id,
-                            "title": title,
-                            "author": author,
-                            "date": date,
-                            "place": place})
-        record = MetadataRecord(id=record_id,
-                                title=title,
-                                creator=author,
-                                date=date,
-                                place=place,
-                                subjects=[],
-                                )
-        logger.info("Successfully parsed TEI record '%s'", record_id)
+        record = MetadataRecord(
+            id=file_path.stem,
+            title=title or "Untitled",
+            creator=author,
+            publication_date=self._parse_date(date_text),
+            place=place,
+            subjects=[],
+        )
 
+        logger.info("Successfully parsed TEI record '%s'", file_path.stem)
         return record
 
-    def _extract_text(self, root: etree._Element, xpath: str, ) -> str | None:
+    def _parse_date(self, value: str | None) -> date | None:
         """
-        Extract text from the first Xpath Match.
-        Args:
-            root (etree._Element): The root element of the TEI XML document.
-            xpath (str): XPath Match.
-        Returns:
-            str | None: The extracted text.
+        Convert TEI date strings into datetime.date.
 
+        Supports:
+        - "1400" → 1400-01-01
+        - "1400-01-01" → 1400-01-01
+        """
+        if not value:
+            return None
+
+        value = value.strip()
+
+        if value.isdigit() and len(value) == 4:
+            return date(int(value), 1, 1)
+
+        return date.fromisoformat(value)
+
+    def _extract_text(self, root: etree._Element, xpath: str) -> str | None:
+        """
+        Extract text from the first XPath match.
         """
         result = root.xpath(xpath, namespaces=self.NAMESPACES)
+
         if not result:
             return None
+
         element = result[0]
 
         if isinstance(element, etree._Element):
             text = "".join(element.itertext()).strip()
             return text or None
+
         return str(element).strip() or None

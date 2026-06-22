@@ -41,14 +41,14 @@ class MetadataRecord(BaseModel):
                     min_length=1,
                     description="Unique identifier for this metadata record.",
                     examples=["rec-001"])
-    title: str = Field(...,
+    title: str = Field(default="Untitled",
                        min_length=1,
                        description="Title of the resource.",
                        examples=["Medieval Manuscript"])
     creator: str | None = Field(default=None,
                                 min_length=1,
                                 description="Primary creator, author or contributor.")
-    date: Date | None = Field(default=None)
+    publication_date: Date | None = Field(default=None)
     place: str | None = Field(default=None,
                               min_length=1,
                               description="Geographic location associated with resource.")

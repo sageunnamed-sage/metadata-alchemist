@@ -1,3 +1,4 @@
+from datetime import date
 from pathlib import Path
 import pytest
 from lxml import etree
@@ -21,7 +22,7 @@ def test_parse_valid_tei_file(tmp_path: Path) -> None:
         </teiHeader>
         <text>
             <body>
-                <placeName>Canterbury</placeName>
+                <placeName>Cantebury</placeName>
             </body>
         </text>
     </TEI>
@@ -37,8 +38,8 @@ def test_parse_valid_tei_file(tmp_path: Path) -> None:
     assert result.id == "rec-001"
     assert result.title == "Cantebury Tales"
     assert result.creator == "Geoffery Chaucer"
-    assert result.publication_date == "1400-01-01"
-    assert result.place == "Cantebury Tales"
+    assert result.publication_date == date(1400, 1, 1)
+    assert result.place == "Cantebury"
     assert result.subjects == []
 
 def test_parse_missing_optional_fields(tmp_path: Path) -> None:
@@ -64,7 +65,7 @@ def test_parse_missing_optional_fields(tmp_path: Path) -> None:
     assert result.id == "rec-002"
     assert result.title == "Untitled Work"
     assert result.creator is None
-    assert result.date is None
+    assert result.publication_date is None
     assert result.place is None
 
 
@@ -177,4 +178,4 @@ def test_namespace_handling(tmp_path: Path) -> None:
 
     assert result.title == "Namespaced Title"
     assert result.creator == "Namespaced Author"
-    assert result.date == "1850-01-01"
+    assert result.publication_date == date(1850, 1, 1)

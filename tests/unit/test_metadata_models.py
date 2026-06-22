@@ -13,7 +13,7 @@ def test_metadata_record_minimal_valid():
     assert record.id == "rec-001"
     assert record.title == "Test Title"
     assert record.creator is None
-    assert record.date is None
+    assert record.publication_date is None
     assert record.place is None
     assert record.subjects == []
 
