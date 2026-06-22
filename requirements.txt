@@ -1,0 +1,44 @@
+# FastApi
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+
+# XML processing
+lxml==6.0.0
+xmltodict==0.14.2
+
+# Data Models
+pydantic==2.11.7
+pydantic-settings==2.10.1
+
+# JSON-LD
+pyld==2.0.4
+
+# Elasticsearch
+elasticsearch==9.1.0
+
+# Data Processing
+pandas==2.3.1
+numpy==2.3.1
+
+# Validation & Reporting
+jsonschema==4.25.0
+jinja2==3.1.6
+
+# Logging
+structlog==25.4.0
+
+# Testing
+pytest==8.4.1
+pytest-cov==6.2.1
+httpx==0.28.1
+
+# Quality Tools
+black==25.1.0
+ruff==0.12.4
+mypy==1.17.1
+
+# Environment
+python-dotenv==1.1.1
+
+# PDF reporting (optional)
+reportlab==4.4.3
