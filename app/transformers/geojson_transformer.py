@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, TypedDict
+from typing import Any, TypedDict, Literal
+
 from app.domain.models.metadata_record import MetadataRecord
 
 logger = logging.getLogger(__name__)
@@ -10,21 +11,23 @@ class GeoJSONValidationError(Exception):
     """Raised when a record cannot be converted into valid GeoJSON."""
 
 class GeoJSONGeometry(TypedDict):
-    type: str
+    type: Literal["Point"]
     coordinates: list[float]
 
 class GeoJSONFeature(TypedDict):
-    type: str
+    type: Literal["Feature"]
+    id: str
     geometry: GeoJSONGeometry | None
-    coordinates: list[float]
     properties: dict[str, Any]
 
 class GeoJSONTransformer:
     """
-    Tranforms MetadataRecord to GeoJSON Feature object.
+    Transforms MetadataRecord to GeoJSON Feature object.
 
     Designed for cultural heritage place-based metadata.
     """
+    FEATURE_TYPE = "Feature"
+    POINT_TYPE = "Point"
 
     def transform(self, record: MetadataRecord) -> GeoJSONFeature:
         """
@@ -34,44 +37,47 @@ class GeoJSONTransformer:
         Returns:
             GeoJSON Feature dictionary.
         Raises:
-            GeoJSONValidationError: If reqyired geographic data is invalid.
+            GeoJSONValidationError: If required geographic data is invalid.
         """
 
-        logger.debug(f"Starting GeoJSON Transformer.",
-                     extra={"record_id": record.id},
+        logger.debug("Starting GeoJSON transformation",
+            extra={"record_id": record.id},
                      )
         geometry = self._build_geometry(record)
         properties = self._build_properties(record)
 
         feature: GeoJSONFeature =  {
-            "type": "Feature",
+            "type": self.FEATURE_TYPE,
+            "id": record.id,
             "geometry": geometry,
             "properties": properties,
         }
         self._validate(feature)
 
-        logger.debug(f"Completed GeoJSON transformation.",
+        logger.debug("Completed GeoJSON transformation.",
                      extra={"record_id": record.id},)
         return feature
 
     # Geometry
-    def _build_geometry(self, record: MetadataRecord) -> GeoJSONGeometry:
-        """
-        Build a GeoJSON geomtetry if coordinates exist.
-        """
+    def _build_geometry(self, record: MetadataRecord) -> GeoJSONGeometry | None:
+        coords = record.coordinates
 
-        if not hasattr(record, "coordinates") or record.coordinates is None:
+        if coords is None:
             return None
-        lat, lon = record.coordinates
 
-        if not self._validate_coordinates(lat, lon):
+        try:
+            lat, lon = coords
+        except (TypeError, ValueError) as exc:
+            raise GeoJSONValidationError(f"Invalid coordinates format for record: {record.id}"
+                                         ) from exc
+
+
+        if not self._is_valid_coordinate(lat, lon):
             raise GeoJSONValidationError(
                 f"Invalid coordinates for record {record.id}: {(lat, lon)}"
             )
-        return {
-            "type": "Point",
-            "coordinates": [lon, lat], # GeoJSON uses [lon, lat]
-        }
+
+        return {"type": self.POINT_TYPE, "coordinates": [lon, lat], }
 
     # Properties
 
@@ -84,7 +90,9 @@ class GeoJSONTransformer:
             "id": record.id,
             "title": record.title,
             "author": record.creator,
-            "date": record.publication_date,
+            "date": (record.publication_date.isoformat()
+                     if hasattr(record.publication_date, "isoformat")
+                     else record.publication_date),
             "place": record.place,
             "subjects": list(record.subjects),
         }
@@ -96,19 +104,35 @@ class GeoJSONTransformer:
         Validate GeoJSON feature.
         """
 
-        if feature["geometry"] is None:
+        geometry = feature["geometry"]
+        if geometry is None:
             logger.warning(
-                "GeoJSON feature has no geomtetry",
-                extra={"feature_id": feature["properties"]["id"]},
+                "GeoJSON feature has no geometry",
+                extra={"feature_id": feature["id"]},
             )
-        if not isinstance(feature["properties"], dict):
-            raise GeoJSONValidationError("Invalid GeoJSON properties")
+            return
 
-        if "id" not in feature["properties"]:
-            raise GeoJSONValidationError("Missing required property: id")
+        if geometry["type"] != self.POINT_TYPE:
+            raise GeoJSONValidationError(
+                f"Unsupported point type: {geometry['type']}",
+            )
+
+        coordinates = geometry["coordinates"]
+
+        if len(coordinates) != 2:
+            raise GeoJSONValidationError(
+                "Point geometry must contain longitude and latitude",
+            )
+
+        if not all(
+            isinstance(value, (int, float))
+            for value in coordinates):
+            raise GeoJSONValidationError(
+                "Coordinates must be numeric",
+            )
 
     # Helpers
-    def _is_validate_coordinate(self, lat: float, lon: float) -> bool:
+    def _is_valid_coordinate(self, lat: float, lon: float) -> bool:
         """
         Validate latitude and longitude coordinates.
         """

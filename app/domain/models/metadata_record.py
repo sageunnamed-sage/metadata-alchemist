@@ -53,3 +53,4 @@ class MetadataRecord(BaseModel):
                               min_length=1,
                               description="Geographic location associated with resource.")
     subjects: List[str] = Field(default_factory=list, description="Controlled vocabulary terms, keywords, or subjects.")
+    coordinates: tuple[float, float] | None = None
